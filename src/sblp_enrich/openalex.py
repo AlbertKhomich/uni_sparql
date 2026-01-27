@@ -1,6 +1,7 @@
 import random
 import time
 from typing import Dict, List, Optional
+from urllib.parse import quote
 
 import requests
 from cache import JsonCache
@@ -10,43 +11,53 @@ OPENALEX_WORKS = "https://api.openalex.org/works"
 _work_cache = JsonCache(".openalex_work_cache.json")
 _search_cache = JsonCache(".openalex_search_cache.json")
 
-def _http_get_json(url: str, params: Dict, timeout: int = 25) -> Dict:
+def _http_get_json(url: str, params: Dict, timeout: int = 60) -> Dict:
     max_tries = 8
     base = 1.0
     last = None
+    last_exc = None
 
     for attempt in range(1, max_tries + 1):
-        r = requests.get(
-            url,
-            params=params,
-            timeout=timeout,
-            headers={"User-Agent": "uni-sparql-openalex-enricher/1.0"},
-        )
-        last = r
+        try:
+            r = requests.get(
+                url,
+                params=params,
+                timeout=(10, timeout),
+                headers={"User-Agent": "uni-sparql-openalex-enricher/1.0"},
+            )
+            last = r
 
-        if r.status_code == 429:
-            ra = r.headers.get("Retry-After")
-            if ra: 
-                try:
-                    wait = float(ra)
-                except ValueError:
+            if r.status_code == 429:
+                ra = r.headers.get("Retry-After")
+                if ra: 
+                    try:
+                        wait = float(ra)
+                    except ValueError:
+                        wait = base * (2 ** (attempt - 1))
+                else:
                     wait = base * (2 ** (attempt - 1))
-            else:
-                wait = base * (2 ** (attempt - 1))
-            time.sleep(min(wait + random.uniform(0, 0.5), 60.0))
-            continue
+                time.sleep(min(wait + random.uniform(0, 0.5), 60.0))
+                continue
 
-        if r.status_code in (500, 502, 503, 504):
+            if r.status_code in (408, 500, 502, 503, 504):
+                wait = base * (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                time.sleep(min(wait, 60.0))
+                continue
+
+            r.raise_for_status()
+            return r.json()
+
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
+            last_exc = e
             wait = base * (2 ** (attempt - 1)) + random.uniform(0, 0.5)
             time.sleep(min(wait, 60.0))
             continue
-
-        r.raise_for_status()
-        return r.json()
-
-    assert last is not None
-    last.raise_for_status()
-    return last.json()
+    
+    if last_exc is not None:
+        raise last_exc
+    if last is not None:
+        last.raise_for_status()
+    raise RuntimeError("OpenAlex request failed without exception")
 
 def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Optional[Dict]:
     doi_iri = (doi_iri or "").strip()
@@ -62,7 +73,12 @@ def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Op
     if include_xpac:
         params["include_xpac"] = "true"
 
-    data = _http_get_json(f"{OPENALEX_WORKS}/{doi_iri}", params=params)
+    try:
+        data = _http_get_json(f"{OPENALEX_WORKS}/{quote(doi_iri, safe=':/')}", params=params)
+    except requests.HTTPError as e:
+        if getattr(e.response, "status_code", None) == 404:
+            return None
+        raise
     _work_cache.set(key, data)
     _work_cache.save()
     return data
