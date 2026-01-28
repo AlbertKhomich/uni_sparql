@@ -1,5 +1,6 @@
 import random
 import time
+import re
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
@@ -10,6 +11,15 @@ OPENALEX_WORKS = "https://api.openalex.org/works"
 
 _work_cache = JsonCache(".openalex_work_cache.json")
 _search_cache = JsonCache(".openalex_search_cache.json")
+_BAD_CHARS_RE = re.compile(r"[|]")
+_CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+def _clean_search(s: str, max_len: int = 300) -> str:
+    s = (s or "").strip()
+    s = _CTRL_RE.sub(" ", s)
+    s = _BAD_CHARS_RE.sub(" ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s[:max_len]
 
 def _http_get_json(url: str, params: Dict, timeout: int = 60) -> Dict:
     max_tries = 8
@@ -57,7 +67,7 @@ def _http_get_json(url: str, params: Dict, timeout: int = 60) -> Dict:
         raise last_exc
     if last is not None:
         last.raise_for_status()
-    raise RuntimeError("OpenAlex request failed without exception")
+    raise RuntimeError("OpenAlex request failed: no HTTP response and no captured exception")
 
 def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Optional[Dict]:
     doi_iri = (doi_iri or "").strip()
@@ -84,8 +94,8 @@ def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Op
     return data
 
 def search_works_by_title(title: str, api_key: str, per_page: int = 5, include_xpac: bool = True) -> List[Dict]:
-    title = (title or "").strip()
-    if not title:
+    title = _clean_search(title)
+    if not title or len(title) < 5:
         return []
 
     key = f"search::{per_page}::xpac={include_xpac}::{title}"
@@ -101,7 +111,15 @@ def search_works_by_title(title: str, api_key: str, per_page: int = 5, include_x
     if include_xpac:
         params["include_xpac"] = "true"
 
-    data = _http_get_json(OPENALEX_WORKS, params=params)
+    try:
+        data = _http_get_json(OPENALEX_WORKS, params=params)
+    except requests.HTTPError as e:
+        if getattr(e.response, "status_code", None) == 400:
+            _search_cache.set(key, [])
+            _search_cache.save()
+            return []
+        raise
+
     res = data.get("results", []) or []
     if not isinstance(res, list):
         res = []
