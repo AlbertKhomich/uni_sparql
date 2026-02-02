@@ -1,25 +1,17 @@
 import random
 import time
-import re
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
 import requests
 from cache import JsonCache
 
+from openalex_cache_keys import cache_key_for_search, cache_key_for_work
+
 OPENALEX_WORKS = "https://api.openalex.org/works"
 
 _work_cache = JsonCache(".openalex_work_cache.json")
 _search_cache = JsonCache(".openalex_search_cache.json")
-_BAD_CHARS_RE = re.compile(r"[|]")
-_CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
-
-def _clean_search(s: str, max_len: int = 300) -> str:
-    s = (s or "").strip()
-    s = _CTRL_RE.sub(" ", s)
-    s = _BAD_CHARS_RE.sub(" ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s[:max_len]
 
 def _http_get_json(url: str, params: Dict, timeout: int = 60) -> Dict:
     max_tries = 8
@@ -74,7 +66,7 @@ def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Op
     if not doi_iri:
         return None
 
-    key = f"work::{doi_iri}::xpac={include_xpac}"
+    key = cache_key_for_work(doi_iri, include_xpac=include_xpac)
     cached = _work_cache.get(key)
     if cached is not None:
         return cached
@@ -94,18 +86,17 @@ def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Op
     return data
 
 def search_works_by_title(title: str, api_key: str, per_page: int = 5, include_xpac: bool = True) -> List[Dict]:
-    title = _clean_search(title)
-    if not title or len(title) < 5:
+    key, cleaned_title = cache_key_for_search(title, per_page=per_page, include_xpac=include_xpac)
+    if not cleaned_title or len(cleaned_title) < 5:
         return []
 
-    key = f"search::{per_page}::xpac={include_xpac}::{title}"
     cached = _search_cache.get(key)
     if cached is not None:
         return cached
 
     params = {
         "api_key": api_key,
-        "search": title,
+        "search": cleaned_title,
         "per-page": str(per_page),
     }
     if include_xpac:
