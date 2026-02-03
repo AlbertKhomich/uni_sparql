@@ -5,7 +5,7 @@ from rdflib import Graph
 
 import openalex
 import fuseki_schemaorg as fuseki
-from rdfout_schemaorg import add_affiliations, add_sameas_openalex, add_sameas_doi
+from rdfout_schemaorg import add_affiliations, add_sameas_openalex, add_identifier_doi
 from author_match import pick_best_authorship, pick_best_work_by_title
 from openalex_utils import doi_from_work
 
@@ -44,7 +44,7 @@ def enrich_one_publication_openalex(
     if not doi_iri:
         doi2 = doi_from_work(work)
         if doi2:
-            add_sameas_doi(g, pub_uri, doi2)
+            add_identifier_doi(g, pub_uri, doi2)
 
     for p in authors:
         person_uri = p["person"]

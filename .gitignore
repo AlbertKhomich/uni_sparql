@@ -18,3 +18,5 @@ data/
 dice-website/
 
 *_cache*
+!openalex_cache_keys.py
+!migrate_cache_to_db.py

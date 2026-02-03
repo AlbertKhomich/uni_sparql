@@ -13,7 +13,13 @@ def sparql_select(endpoint_query: str, sparql: str) -> List[Dict]:
     r.raise_for_status()
     return r.json().get("results", {}).get("bindings", [])
 
-def fetch_publications(endpoint_query: str, limit: int = 500, offset:int = 0) -> List[Dict]:
+def fetch_publications(endpoint_query: str, limit: int = 0, offset:int = 0) -> List[Dict]:
+    limit = int(limit)
+    offset = int(offset)
+
+    limit_clause = f"limit {limit}" if limit > 0 else ""
+    offset_clause = f"offset {offset}" if offset > 0 else ""
+
     q = f"""
     prefix schema: <{SCHEMA}>
 
@@ -40,8 +46,8 @@ def fetch_publications(endpoint_query: str, limit: int = 500, offset:int = 0) ->
     }}
     group by ?pub
     order by ?pub
-    limit {int(limit)}
-    offset {int(offset)}
+    {limit_clause}
+    {offset_clause}
     """.strip()
 
     rows = sparql_select(endpoint_query, q)
