@@ -38,3 +38,4 @@ def add_identifier_doi(g: Graph, pub_uri: str, doi_value: Optional[str]) -> None
         return
 
     g.add((s, SCHEMA.identifier, Literal(f"DOI:{v}")))
+    print(f"{pub_uri} got DOI:{v}")

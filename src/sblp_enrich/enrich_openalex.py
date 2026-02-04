@@ -20,7 +20,7 @@ def enrich_one_publication_openalex(
 
     pub_uri = pub_row["pub"]
     title = pub_row.get("title") or ""
-    doi_iri = pub_row.get("doi")
+    doi_iri = pub_row.get("doi_ident")
 
     authors = fuseki.fetch_pub_authors(endpoint_query, pub_uri)
 

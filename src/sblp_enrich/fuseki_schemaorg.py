@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 import requests
 
 SCHEMA = "https://schema.org/"
+PAPER = "https://dice-research.org/id/publication/ris/"
 
 def sparql_select(endpoint_query: str, sparql: str) -> List[Dict]:
     r = requests.post(
@@ -22,6 +23,7 @@ def fetch_publications(endpoint_query: str, limit: int = 0, offset:int = 0) -> L
 
     q = f"""
     prefix schema: <{SCHEMA}>
+    prefix paper: <{PAPER}>
 
     select 
         ?pub
@@ -31,6 +33,9 @@ def fetch_publications(endpoint_query: str, limit: int = 0, offset:int = 0) -> L
         (sample(?doiIdent0) as ?doi_ident)
     where {{
         ?pub schema:name ?title0 .
+
+        filter(strstarts(str(?pub), str(paper:)))
+
         optional {{ ?pub schema:datePublished ?year0 . }}
 
         optional {{
