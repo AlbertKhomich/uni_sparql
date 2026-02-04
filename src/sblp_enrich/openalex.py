@@ -143,10 +143,6 @@ def search_works_by_title(title: str, api_key: str, per_page: int = 5, include_x
     try:
         data = _http_get_json(OPENALEX_WORKS, params=params)
     except requests.HTTPError as e:
-        if getattr(e.response, "status_code", None) == 400:
-            _search_cache.set(key, [])
-            _cache_commit_maybe()
-            return []
         raise
 
     res = data.get("results", []) or []
