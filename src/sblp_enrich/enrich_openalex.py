@@ -23,15 +23,12 @@ def enrich_one_publication_openalex(
     doi_iri = pub_row.get("doi_ident")
 
     authors = fuseki.fetch_pub_authors(endpoint_query, pub_uri)
-
     work = None
     if doi_iri:
         work = openalex.get_work_by_doi(doi_iri, api_key=api_key, include_xpac=True)
-        time.sleep(sleep_s)
 
     if not work and title:
         results = openalex.search_works_by_title(title, api_key=api_key, per_page=5, include_xpac=True)
-        time.sleep(sleep_s)
         work = pick_best_work_by_title(title, results)
 
     if not work:

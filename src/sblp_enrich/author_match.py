@@ -1,4 +1,6 @@
 import re
+import unicodedata
+from rapidfuzz import fuzz
 from difflib import SequenceMatcher
 from typing import Dict, List, Optional, Tuple
 
@@ -23,24 +25,28 @@ def last_and_initial(s: str) -> Tuple[str, str]:
 def sim(a: str, b: str) -> float:
     return SequenceMatcher(None, norm_name(a), norm_name(b)).ratio()
 
+def only_letters(name: str) -> str:
+    s = (name or "").strip().lower()
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+
+    return re.sub(r"[^a-z]", "", s)
+
 def pick_best_authorship(authorships: List[Dict], person_name: str) -> Optional[Dict]:
-    pl, pi = last_and_initial(person_name)
+    person_n = only_letters(person_name)
 
     best = None
     best_score = -1.0
-
     for au in authorships:
         author = (au.get("author") or {})
         dn = author.get("display_name") or ""
-        al, ai = last_and_initial(dn)
+        dname = only_letters(dn)
+        
+        last_sim = fuzz.token_sort_ratio(person_name, dn)
 
         score = 0.0
-        if pl and al and pl == al:
-            score += 0.6
-            if pi and ai and pi == ai:
-                score += 0.2
-
-        score += 0.2 * sim(person_name, dn)
+        if person_name and dname and last_sim >= 0.55:
+            score += 0.55
 
         if score > best_score:
             best_score = score
