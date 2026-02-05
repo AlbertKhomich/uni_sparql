@@ -1,4 +1,5 @@
 import time
+import re
 from typing import Dict, List, Optional
 
 from rdflib import Graph
@@ -9,6 +10,16 @@ from rdfout_schemaorg import add_affiliations, add_sameas_openalex, add_identifi
 from author_match import pick_best_authorship, pick_best_work_by_title
 from openalex_utils import doi_from_work
 
+
+_DIO_RE = re.compile(r"^DOI:\s*(10\.\d{4,9}/\S+)\s*$", re.IGNORECASE)
+
+def doi_identifier_to_url(identifier: str) -> Optional[str]:
+    s = (identifier or "").strip()
+    m = _DIO_RE.match(s)
+    if not m:
+        return None
+    doi = m.group(1).rstrip(").],.;")
+    return f"https://doi.org/{doi}"
 
 def enrich_one_publication_openalex(
     endpoint_query: str,
@@ -21,11 +32,12 @@ def enrich_one_publication_openalex(
     pub_uri = pub_row["pub"]
     title = pub_row.get("title") or ""
     doi_iri = pub_row.get("doi_ident")
+    doi_url = doi_identifier_to_url(doi_iri)
 
     authors = fuseki.fetch_pub_authors(endpoint_query, pub_uri)
     work = None
-    if doi_iri:
-        work = openalex.get_work_by_doi(doi_iri, api_key=api_key, include_xpac=True)
+    if doi_url:
+        work = openalex.get_work_by_doi(doi_url, api_key=api_key, include_xpac=True)
 
     if not work and title:
         results = openalex.search_works_by_title(title, api_key=api_key, per_page=5, include_xpac=True)
@@ -38,7 +50,7 @@ def enrich_one_publication_openalex(
     if not isinstance(authorships, list) or not authorships:
         return g
 
-    if not doi_iri:
+    if not doi_url:
         doi2 = doi_from_work(work)
         if doi2:
             add_identifier_doi(g, pub_uri, doi2)
