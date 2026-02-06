@@ -6,16 +6,16 @@ from rdflib import Graph
 
 import openalex
 import fuseki_schemaorg as fuseki
-from rdfout_schemaorg import add_affiliations, add_sameas_openalex, add_identifier_doi
+from rdfout_schemaorg import add_affiliations, add_sameas_orcid, add_identifier_doi
 from author_match import pick_best_authorship, pick_best_work_by_title
 from openalex_utils import doi_from_work
 
 
-_DIO_RE = re.compile(r"^DOI:\s*(10\.\d{4,9}/\S+)\s*$", re.IGNORECASE)
+_DOI_RE = re.compile(r"^DOI:\s*(10\.\d{4,9}/\S+)\s*$", re.IGNORECASE)
 
 def doi_identifier_to_url(identifier: str) -> Optional[str]:
     s = (identifier or "").strip()
-    m = _DIO_RE.match(s)
+    m = _DOI_RE.match(s)
     if not m:
         return None
     doi = m.group(1).rstrip(").],.;")
@@ -66,7 +66,9 @@ def enrich_one_publication_openalex(
         if not au:
             continue
 
-        openalex_author_id = (au.get("author") or {}).get("id")
+        orcid_author_id = (au.get("author") or {}).get("orcid")
+        if not orcid_author_id:
+            orcid_author_id = (au.get("author") or {}).get("id")
 
         affs = []
         for aff in (au.get("affiliations") or []):
@@ -83,7 +85,7 @@ def enrich_one_publication_openalex(
 
         if affs2:
             add_affiliations(g, person_uri, affs2)
-        if openalex_author_id:
-            add_sameas_openalex(g, person_uri, openalex_author_id)
+        if orcid_author_id:
+            add_sameas_orcid(g, person_uri, orcid_author_id)
 
     return g

@@ -43,18 +43,8 @@ def pick_best_authorship(authorships: List[Dict], person_name: str) -> Optional[
         dname = only_letters(dn)
         
         last_sim = fuzz.token_sort_ratio(person_name, dn)
-
-        score = 0.0
-        if person_name and dname and last_sim >= 0.55:
-            score += 0.55
-
-        if score > best_score:
-            best_score = score
-            best = au
-
-    if best is None or best_score < 0.55:
-        return None
-    return best
+        if last_sim >= 75:
+            return au
 
 def pick_best_work_by_title(query_title: str, results: list[dict], min_sim: float = 0.80) -> dict | None:
     best = None

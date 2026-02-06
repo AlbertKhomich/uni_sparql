@@ -10,11 +10,11 @@ def add_affiliations(g: Graph, person_uri: str, affiliations: Iterable[str]) -> 
         if aff:
             g.add((s, SCHEMA.affiliation, Literal(aff)))
 
-def add_sameas_openalex(g: Graph, person_uri: str, openalex_author_id: Optional[str]) -> None:
-    if not openalex_author_id:
+def add_sameas_orcid(g: Graph, person_uri: str, orcid_author_id: Optional[str]) -> None:
+    if not orcid_author_id:
         return
     s = URIRef(person_uri)
-    g.add((s, SCHEMA.sameAs, URIRef(openalex_author_id)))
+    g.add((s, SCHEMA.sameAs, URIRef(orcid_author_id)))
 
 def add_identifier_doi(g: Graph, pub_uri: str, doi_value: Optional[str]) -> None:
     if not doi_value:
