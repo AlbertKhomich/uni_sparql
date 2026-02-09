@@ -1,14 +1,62 @@
-from typing import Iterable, Optional
+import hashlib
+from typing import Iterable, Optional, Dict
 from rdflib import Graph, URIRef, Literal, Namespace
+from rdflib.namespace import RDF
 
 SCHEMA = Namespace("https://schema.org/")
+ORG_BASE = "https://dice-research.org/id/org/"
 
-def add_affiliations(g: Graph, person_uri: str, affiliations: Iterable[str]) -> None:
+def mint_org_uri(
+    *,
+    inst_id: str,
+    ror: str,
+    name: str,
+    cc: str,
+) -> str:
+    inst_id = (inst_id or "").strip()
+    ror = (ror or "").strip()
+    name = (name or "").strip()
+    cc = (cc or "").strip()
+
+    if ror:
+        return ror
+
+    if inst_id:
+        return inst_id
+
+    key = f"org::{name.lower()}|{cc.lower()}".strip()
+
+    h = hashlib.sha1(key.encode("utf-8")).hexdigest()
+    uri = ORG_BASE + h
+
+    return uri
+
+def add_affiliation(g: Graph, person_uri: str, inst: Dict[str, str]) -> None:
     s = URIRef(person_uri)
-    for aff in affiliations:
-        aff = (aff or "").strip()
-        if aff:
-            g.add((s, SCHEMA.affiliation, Literal(aff)))
+
+    inst_id = (inst.get("id") or "").strip()
+    ror = (inst.get("ror") or "").strip()
+    name = (inst.get("display_name") or "").strip()
+    cc = (inst.get("country_code") or "").strip()
+    
+    org_uri_str = mint_org_uri(
+        inst_id=inst_id,
+        ror=ror,
+        name=name,
+        cc=cc,
+    )
+    o = URIRef(org_uri_str)
+
+    g.add((s, SCHEMA.affiliation, o))
+    g.add((o, RDF.type, SCHEMA.Organization))
+    if name:
+        g.add((o, SCHEMA.name, Literal(name)))
+    if cc:
+        g.add((o, SCHEMA.addressCountry, Literal(cc)))
+    if inst_id and org_uri_str != inst_id:
+        g.add((o, SCHEMA.sameAs, URIRef(inst_id)))
+    if ror and org_uri_str != ror:
+        g.add((o, SCHEMA.sameAs, URIRef(ror)))
 
 def add_sameas_orcid(g: Graph, person_uri: str, orcid_author_id: Optional[str]) -> None:
     if not orcid_author_id:

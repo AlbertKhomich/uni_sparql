@@ -1,4 +1,5 @@
 import time
+import atexit
 import re
 from typing import Dict, List, Optional
 
@@ -6,12 +7,20 @@ from rdflib import Graph
 
 import openalex
 import fuseki_schemaorg as fuseki
-from rdfout_schemaorg import add_affiliations, add_sameas_orcid, add_identifier_doi
+from cache_db import SqliteTableCache
+from rdfout_schemaorg import add_affiliation, add_sameas_orcid, add_identifier_doi
 from author_match import pick_best_authorship, pick_best_work_by_title
 from openalex_utils import doi_from_work
 
 
 _DOI_RE = re.compile(r"^DOI:\s*(10\.\d{4,9}/\S+)\s*$", re.IGNORECASE)
+
+def openalex_author_endpoint(author_id: str) -> Optional[str]:
+    if not author_id:
+        return None
+    s = author_id.strip().strip("/")
+    tail = s.rsplit("/", 1)[-1]
+    return f"https://api.openalex.org/authors/{tail}"
 
 def doi_identifier_to_url(identifier: str) -> Optional[str]:
     s = (identifier or "").strip()
@@ -65,27 +74,27 @@ def enrich_one_publication_openalex(
         au = pick_best_authorship(authorships, person_name)
         if not au:
             continue
+        openalex_author_id = (au.get("author") or {}).get("id")
+        if not openalex_author_id:
+            continue
 
-        orcid_author_id = (au.get("author") or {}).get("orcid")
-        if not orcid_author_id:
-            orcid_author_id = (au.get("author") or {}).get("id")
+        au_expanded = openalex.authors_cache.get(openalex_author_id)
+        
+        if au_expanded is None:
+            print(f"[NO CACHE FOR] {openalex_author_id}")
 
-        affs = []
-        for aff in (au.get("affiliations") or []):
-            ras = (aff.get("raw_affiliation_string") or "").strip()
-            if ras:
-                affs.append(ras)
+            author_endpoint = openalex_author_endpoint(openalex_author_id)
+            params = {"api_key": api_key}
+            au_expanded = openalex.http_get_json(author_endpoint, params=params)
 
-        seen = set()
-        affs2 = []
-        for a in affs:
-            if a not in seen:
-                seen.add(a)
-                affs2.append(a)
+            openalex.authors_cache.set(openalex_author_id, au_expanded)
+            openalex.cache_commit_maybe()
 
-        if affs2:
-            add_affiliations(g, person_uri, affs2)
-        if orcid_author_id:
-            add_sameas_orcid(g, person_uri, orcid_author_id)
+        orcid = (au_expanded.get("orcid") or "").strip()
+        affs: List[Dict[str, str]] = []
+
+        for aff in (au_expanded.get("affiliations") or []):
+            inst = (aff or {}).get("institution") or {}
+            add_affiliation(g, person_uri, inst)
 
     return g
