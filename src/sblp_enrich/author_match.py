@@ -33,18 +33,31 @@ def only_letters(name: str) -> str:
     return re.sub(r"[^a-z]", "", s)
 
 def pick_best_authorship(authorships: List[Dict], person_name: str) -> Optional[Dict]:
-    person_n = only_letters(person_name)
+    best_au: Optional[Dict] = None
+    best_score: float = -1.0
 
-    best = None
-    best_score = -1.0
     for au in authorships:
         author = (au.get("author") or {})
         dn = author.get("display_name") or ""
-        dname = only_letters(dn)
+        raw = (au.get("raw_author_name") or "").strip()
         
         last_sim = fuzz.token_sort_ratio(person_name, dn)
         if last_sim >= 75:
             return au
+
+        s_raw = fuzz.token_sort_ratio(person_name, raw)
+        if s_raw >= 75:
+            return au
+
+        if last_sim > best_score:
+            best_score = last_sim
+            best_au = au
+
+        if s_raw > best_score:
+            best_score = s_raw
+            best_au = au
+    
+    return best_au
 
 def pick_best_work_by_title(query_title: str, results: list[dict], min_sim: float = 0.80) -> dict | None:
     best = None
