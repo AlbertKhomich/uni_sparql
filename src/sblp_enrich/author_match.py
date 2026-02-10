@@ -36,14 +36,9 @@ def pick_best_authorship(authorships: List[Dict], person_name: str) -> Optional[
     for au in authorships:
         author = (au.get("author") or {})
         dn = author.get("display_name") or ""
-        raw = (au.get("raw_author_name") or "").strip()
         
         last_sim = fuzz.token_sort_ratio(person_name, dn)
         if last_sim >= 75:
-            return au
-
-        s_raw = fuzz.token_sort_ratio(person_name, raw)
-        if s_raw >= 75:
             return au
     
     return None
