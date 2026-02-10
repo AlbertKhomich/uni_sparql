@@ -1,6 +1,7 @@
 import time
 import atexit
 import re
+import requests
 from typing import Dict, List, Optional
 
 from rdflib import Graph
@@ -8,7 +9,7 @@ from rdflib import Graph
 import openalex
 import fuseki_schemaorg as fuseki
 from cache_db import SqliteTableCache
-from rdfout_schemaorg import add_affiliation, add_sameas_orcid, add_identifier_doi
+from rdfout_schemaorg import add_affiliation, add_sameas, add_identifier_doi
 from author_match import pick_best_authorship, pick_best_work_by_title
 from openalex_utils import doi_from_work
 
@@ -84,13 +85,25 @@ def enrich_one_publication_openalex(
             print(f"[NO CACHE FOR] {openalex_author_id}")
 
             author_endpoint = openalex_author_endpoint(openalex_author_id)
+            add_sameas(g, person_uri, author_endpoint)
+
             params = {"api_key": api_key}
-            au_expanded = openalex.http_get_json(author_endpoint, params=params)
+            try:
+                au_expanded = openalex.http_get_json(author_endpoint, params=params)
+            except requests.HTTPError as e:
+                status = getattr(e.response, "status_code", None)
+                if status == 404:
+                    print("OpenAlex author not found -> skipping", author_endpoint)
+                    continue
+
+                raise
 
             openalex.authors_cache.set(openalex_author_id, au_expanded)
             openalex.cache_commit_maybe()
 
         orcid = (au_expanded.get("orcid") or "").strip()
+        add_sameas(g, person_uri, orcid)
+        
         affs: List[Dict[str, str]] = []
 
         for aff in (au_expanded.get("affiliations") or []):

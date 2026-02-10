@@ -58,11 +58,11 @@ def add_affiliation(g: Graph, person_uri: str, inst: Dict[str, str]) -> None:
     if ror and org_uri_str != ror:
         g.add((o, SCHEMA.sameAs, URIRef(ror)))
 
-def add_sameas_orcid(g: Graph, person_uri: str, orcid_author_id: Optional[str]) -> None:
-    if not orcid_author_id:
+def add_sameas(g: Graph, person_uri: str, author_id: Optional[str]) -> None:
+    if not author_id:
         return
     s = URIRef(person_uri)
-    g.add((s, SCHEMA.sameAs, URIRef(orcid_author_id)))
+    g.add((s, SCHEMA.sameAs, URIRef(author_id)))
 
 def add_identifier_doi(g: Graph, pub_uri: str, doi_value: Optional[str]) -> None:
     if not doi_value:
