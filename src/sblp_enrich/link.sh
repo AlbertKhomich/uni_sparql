@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IN="/data/uni_sparql/data/uni/uni_v7.nt"
-OUT="/data/uni_sparql/data/uni/uni_v7_sameas.nt"
+IN="/data/uni_sparql/data/uni/uni_v8.nt"
+OUT="/data/uni_sparql/data/uni/uni_v8_sameas.nt"
 
 cat \
   <(sed -nE 's#^(<[^>]+>) <https://schema\.org/identifier> ("DOI:[^"]*")[[:space:]]*\.$#\1 <https://schema.org/doi> \2 .#p' "$IN") \

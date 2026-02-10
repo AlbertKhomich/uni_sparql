@@ -103,6 +103,7 @@ def enrich_one_publication_openalex(
 
         orcid = (au_expanded.get("orcid") or "").strip()
         add_sameas(g, person_uri, orcid)
+        add_sameas(g, person_uri, openalex_author_id)
         
         affs: List[Dict[str, str]] = []
 
