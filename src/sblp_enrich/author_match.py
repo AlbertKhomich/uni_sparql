@@ -33,9 +33,6 @@ def only_letters(name: str) -> str:
     return re.sub(r"[^a-z]", "", s)
 
 def pick_best_authorship(authorships: List[Dict], person_name: str) -> Optional[Dict]:
-    best_au: Optional[Dict] = None
-    best_score: float = -1.0
-
     for au in authorships:
         author = (au.get("author") or {})
         dn = author.get("display_name") or ""
@@ -49,7 +46,7 @@ def pick_best_authorship(authorships: List[Dict], person_name: str) -> Optional[
         if s_raw >= 75:
             return au
     
-    return best_au
+    return None
 
 def pick_best_work_by_title(query_title: str, results: list[dict], min_sim: float = 0.80) -> dict | None:
     best = None

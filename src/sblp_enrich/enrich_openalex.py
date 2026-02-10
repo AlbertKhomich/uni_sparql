@@ -85,7 +85,6 @@ def enrich_one_publication_openalex(
             print(f"[NO CACHE FOR] {openalex_author_id}")
 
             author_endpoint = openalex_author_endpoint(openalex_author_id)
-            add_sameas(g, person_uri, author_endpoint)
 
             params = {"api_key": api_key}
             try:
