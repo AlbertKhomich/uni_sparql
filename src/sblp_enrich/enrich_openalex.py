@@ -106,8 +106,8 @@ def enrich_one_publication_openalex(
         
         affs: List[Dict[str, str]] = []
 
-        for aff in (au_expanded.get("affiliations") or []):
-            inst = (aff or {}).get("institution") or {}
-            add_affiliation(g, person_uri, inst)
+        insts = au_expanded.get("last_known_institutions") or []
+        if insts:
+            add_affiliation(g, person_uri, insts[0])
 
     return g
