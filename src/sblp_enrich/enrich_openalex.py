@@ -110,4 +110,9 @@ def enrich_one_publication_openalex(
         if insts:
             add_affiliation(g, person_uri, insts[0])
 
+        if not insts:
+            insts2 = au_expanded.get("affiliations")
+            if insts2:
+                add_affiliation(g, person_uri, insts2[0])
+
     return g
