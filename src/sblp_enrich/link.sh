@@ -1,8 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IN="/data/uni_sparql/data/uni/uni_v10.nt"
-OUT="/data/uni_sparql/data/uni/uni_v10_sameas.nt"
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  sameas_pairs.sh -i INPUT.nt -o OUTPUT.tsv
+  sameas_pairs.sh INPUT.nt OUTPUT.tsv
+
+Creates subject-subject pairs (tab-separated) for subjects that share the same object
+(from schema:sameAs triples and identifier "DOI:..." rewritten as schema:doi).
+
+Output format:
+  <subj1>\t<subj2>\t1.0
+EOF
+  exit 2
+}
+
+IN=""
+OUT=""
+
+# Accept either flags (-i/-o) or positional (IN OUT)
+if [[ $# -eq 2 && "$1" != -* && "$2" != -* ]]; then
+  IN="$1"
+  OUT="$2"
+else
+  while getopts ":i:o:h" opt; do
+    case "$opt" in
+      i) IN="$OPTARG" ;;
+      o) OUT="$OPTARG" ;;
+      h) usage ;;
+      :) echo "Error: -$OPTARG requires an argument." >&2; usage ;;
+      \?) echo "Error: unknown option -$OPTARG" >&2; usage ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  [[ $# -eq 0 ]] || { echo "Error: unexpected extra args: $*" >&2; usage; }
+fi
+
+[[ -n "${IN}" && -n "${OUT}" ]] || usage
+[[ -f "${IN}" ]] || { echo "Error: input not found: $IN" >&2; exit 1; }
 
 cat \
   <(sed -nE 's#^(<[^>]+>) <https://schema\.org/identifier> ("DOI:[^"]*")[[:space:]]*\.$#\1 <https://schema.org/doi> \2 .#p' "$IN") \
