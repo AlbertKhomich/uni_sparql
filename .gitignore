@@ -22,3 +22,4 @@ dice-website/
 !migrate_cache_to_db.py
 
 smush_rewrite.py
+align.py

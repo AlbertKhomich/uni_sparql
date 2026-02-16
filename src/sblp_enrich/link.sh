@@ -41,9 +41,32 @@ fi
 [[ -f "${IN}" ]] || { echo "Error: input not found: $IN" >&2; exit 1; }
 
 cat \
-  <(sed -nE 's#^(<[^>]+>) <https://schema\.org/identifier> ("DOI:[^"]*")[[:space:]]*\.$#\1 <https://schema.org/doi> \2 .#p' "$IN") \
-  <(sed -nE '/^<[^>]+> <https:\/\/schema\.org\/sameAs> <[^>]+> \.$/p' "$IN") \
+  <(sed -nE 's#^(<[^>]+>)[[:space:]]+<https://schema\.org/identifier>[[:space:]]+("DOI:[^"]*")[[:space:]]*\.[[:space:]]*$#\1 <https://schema.org/doi> \2 .#p' "$IN") \
+  <(sed -nE '/^<[^>]+>[[:space:]]+<https:\/\/schema\.org\/sameAs>[[:space:]]+<[^>]+>[[:space:]]*\.[[:space:]]*$/p' "$IN") \
+| tr -d '\r' \
 | awk '
+function norm_obj(o, doi, post) {
+  # IRI form: <https://doi.org/...> or <http://doi.org/...>
+  if (o ~ /^<https?:\/\/doi\.org\/[^>]+>$/) {
+    doi = o
+    sub(/^<https?:\/\/doi\.org\//, "", doi)
+    sub(/>$/, "", doi)
+    return "<https://doi.org/" tolower(doi) ">"
+  }
+
+  # Literal form: "DOI:...." (optionally with @lang or ^^<dt>)
+  if (o ~ /^"DOI:[^"]*"/) {
+    doi = o
+    sub(/^"DOI:/, "", doi)
+    sub(/".*$/, "", doi)
+    post = o
+    sub(/^"DOI:[^"]*"/, "", post)
+    return "\"DOI:" tolower(doi) "\"" post
+  }
+
+  return o
+}
+
 {
   subj = $1
 
@@ -51,7 +74,7 @@ cat \
   line = $0
   sub(/^[^[:space:]]+[[:space:]]+<[^>]+>[[:space:]]+/, "", line)
   sub(/[[:space:]]+\.[[:space:]]*$/, "", line)
-  obj = line
+  obj = norm_obj(line)
 
   # de-duplicate subject per object
   key = obj SUBSEP subj
