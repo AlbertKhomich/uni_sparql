@@ -1,0 +1,1 @@
+biber --tool --validate-datamodel /file/path.bib
