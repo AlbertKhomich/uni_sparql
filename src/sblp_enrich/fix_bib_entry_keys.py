@@ -14,6 +14,7 @@ except Exception:
 
 ENTRY_HEAD_RE = re.compile(r"^(\s*@\w+\s*[{(]\s*)(.*)$", re.UNICODE)
 WS_RE = re.compile(r"\s+", re.UNICODE)
+DISALLOWED_KEY_CHARS_RE = re.compile(r"[^\w:+./-]", re.UNICODE)
 ACCENT_TO_COMBINING = {
     '"': "\u0308",
     "'": "\u0301",
@@ -132,6 +133,8 @@ def normalize_key(key: str) -> str:
     normalized = normalized.replace(",", "")
     if _has_latex_markup(original):
         normalized = _strip_diacritics(normalized)
+    # Keep only a conservative BibTeX-safe key character set.
+    normalized = DISALLOWED_KEY_CHARS_RE.sub("", normalized)
     normalized = WS_RE.sub("_", normalized).strip("_")
     normalized = re.sub(r"_+", "_", normalized)
     return normalized
@@ -198,7 +201,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "Normalize BibTeX entry keys: replace whitespace with underscores and "
-            "decode/repair LaTeX artifacts in keys."
+            "decode/repair LaTeX artifacts in keys while dropping malformed symbols."
         )
     )
     parser.add_argument("bib_file", help="Path to .bib file")
