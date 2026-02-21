@@ -8,6 +8,9 @@ Field set handled (your list):
 address, author, booktitle, collection, doi, editor, journal,
 location, number, pages, publisher, series, title, volume, year
 
+BibLaTeX aliases handled:
+date (as year/datePublished), journaltitle (as journal), edition
+
 Adds:
 - LaTeX -> Unicode decoding via pylatexenc (recommended)
 - name list splitting primarily on 'and' (biber-friendly), with safe fallbacks for ';', ' / ', '&'
@@ -275,19 +278,19 @@ def main():
         title_raw = get_any(e_lc, "title")
         title = decode_latex(title_raw) if (do_decode and title_raw) else (norm_space(str(title_raw)) if title_raw else None)
 
-        year = get_any(e_lc, "year")
-        year = str(year).strip() if year else None
+        pub_date = get_any(e_lc, "year", "date")
+        pub_date = str(pub_date).strip() if pub_date else None
 
         doi_raw = get_any(e_lc, "doi")
         doi = extract_first_doi(str(doi_raw)) if doi_raw else None
 
-        work = mint_work_uri(args.base, str(bibkey) if bibkey else None, doi, title, year)
+        work = mint_work_uri(args.base, str(bibkey) if bibkey else None, doi, title, pub_date)
 
         g.add((work, RDF.type, SCHEMA.CreativeWork))
         add_lit(g, work, SCHEMA.name, title)
 
-        if year:
-            add_lit(g, work, SCHEMA.datePublished, year)
+        if pub_date:
+            add_lit(g, work, SCHEMA.datePublished, pub_date)
 
         if bibkey:
             add_lit(g, work, SCHEMA.identifier, f"bibtex:{bibkey}")
@@ -306,6 +309,7 @@ def main():
 
         add_lit(g, work, SCHEMA.volumeNumber, get_any(e_lc, "volume"))
         add_lit(g, work, SCHEMA.issueNumber, get_any(e_lc, "number"))
+        add_lit(g, work, SCHEMA.bookEdition, get_any(e_lc, "edition"))
 
         ps, pe = parse_pages(get_any(e_lc, "pages"))
         add_lit(g, work, SCHEMA.pageStart, ps)
@@ -314,7 +318,7 @@ def main():
         if np is not None:
             g.add((work, SCHEMA.numberOfPages, Literal(str(np), datatype=XSD.integer)))
 
-        venue_raw = get_any(e_lc, "journal", "booktitle")
+        venue_raw = get_any(e_lc, "journal", "journaltitle", "booktitle")
         if venue_raw:
             venue_name = decode_latex(venue_raw) if do_decode else norm_space(str(venue_raw))
             if venue_name:
