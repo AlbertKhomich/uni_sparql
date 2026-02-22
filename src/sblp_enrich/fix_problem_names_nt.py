@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Repair common schema.org/name corruption patterns in N-Triples.
+r"""Repair common schema.org/name corruption patterns in N-Triples.
 
 Pipeline per literal (streaming):
-1) Convert umlaut-looking patterns: \\"a|o|u followed by whitespace.
-2) Unescape N-Triples escapes.
+1) Unescape N-Triples escapes.
+2) Repair LaTeX-style accent fragments (\\"u, \\ "u, \\"{u}, \ss).
 3) Merge split tokens around standalone umlauts.
 4) Merge single-letter prefix with umlaut-starting continuation.
-5) Remove spaces after hyphen in names.
+5) Remove spaces after hyphen in split names.
 6) NFC normalize.
-7) Optionally log suspicious leftovers.
+7) Re-escape as valid N-Triples.
+8) Optionally log suspicious leftovers.
 """
 
 from __future__ import annotations
@@ -22,32 +23,23 @@ from typing import TextIO
 
 DEFAULT_PREDICATE = "<https://schema.org/name>"
 
-UMLAUT_MAP = {
-    "a": "ä",
-    "o": "ö",
-    "u": "ü",
-    "A": "Ä",
-    "O": "Ö",
-    "U": "Ü",
-}
-
-UMLAUT_SPACE_RE = re.compile(r'\\"([aAoOuU])(?=\s)')
 MERGE_SPLIT_UMLAUT_RE = re.compile(r"([^\W\d_]+)\s+([äöüÄÖÜ])\s+([^\W\d_]+)", re.UNICODE)
 MERGE_SINGLE_PREFIX_RE = re.compile(r"\b([^\W\d_])\s+([äöüÄÖÜ][^\W\d_]+)\b", re.UNICODE)
-FIX_HYPHEN_SPACE_RE = re.compile(r"\b([A-ZÄÖÜ][^\s-]*)-\s+([A-ZÄÖÜ][^\s-]*)\b", re.UNICODE)
-SUSPICIOUS_RAW_UMLAUT_RE = re.compile(r'\\"[aAoOuU](?=\s)')
+MERGE_TITLECASE2_PREFIX_RE = re.compile(r"\b([A-ZÄÖÜ][a-zäöüß])\s+([äöü][^\W\d_]+)\b", re.UNICODE)
+FIX_HYPHEN_SPACE_RE = re.compile(r"(\w)-\s+(\w)", re.UNICODE)
+# Braced LaTeX umlaut forms: \"{u}
+DIAERESIS_BRACED_RE = re.compile(r'\\\s*"\s*\{\s*([A-Za-z])\s*\}')
+# Split-token umlaut forms that keep trailing split whitespace: \" u r / \"u r / \ "u r
+DIAERESIS_SPLIT_RE = re.compile(r'\\\s*"\s*([A-Za-z])(?=\s)')
+# Sharp-s in-word split form: ... \ ss ...
+SHARP_S_BETWEEN_RE = re.compile(r"([^\W\d_])\s*\\\s*(ss|SS)\s*([^\W\d_])", re.UNICODE)
+# Fallback standalone sharp-s macro: \ss / \SS
+SHARP_S_RE = re.compile(r"\\\s*(ss|SS)\b")
+SUSPICIOUS_RAW_UMLAUT_RE = re.compile(r'\\\\\s*\\"\s*\{?\s*[A-Za-z]\s*\}?')
+SUSPICIOUS_RAW_SHARP_S_RE = re.compile(r"\\\\\s*(ss|SS)\b")
 SUSPICIOUS_ISOLATED_UMLAUT_RE = re.compile(r"(?:^|\s)[äöüÄÖÜ](?:\s|$)", re.UNICODE)
-MERGE_STOPWORDS = {
-    "and",
-    "for",
-    "in",
-    "of",
-    "on",
-    "the",
-    "to",
-    "und",
-    "von",
-}
+FOR_UR_RE = re.compile(r"\bforür\b")
+SPACE_BEFORE_COMMA_RE = re.compile(r"\s+,")
 
 
 @dataclass
@@ -264,101 +256,42 @@ def repeat_sub(pattern: re.Pattern[str], repl: str, text: str, max_passes: int =
     return s
 
 
-def alpha_fragment_left(text: str, idx: int) -> str:
-    i = idx - 1
-    while i >= 0 and text[i].isspace():
-        i -= 1
-    j = i
-    while j >= 0 and text[j].isalpha():
-        j -= 1
-    return text[j + 1 : i + 1]
-
-
-def alpha_fragment_right(text: str, idx: int) -> str:
-    i = idx
-    n = len(text)
-    while i < n and text[i].isspace():
-        i += 1
-    j = i
-    while j < n and text[j].isalpha():
-        j += 1
-    return text[i:j]
-
-
-def convert_umlaut_looking(raw_literal_body: str) -> str:
-    def repl(match: re.Match[str]) -> str:
-        left = alpha_fragment_left(raw_literal_body, match.start())
-        left_len = len(left)
-        right = alpha_fragment_right(raw_literal_body, match.end(1))
-        right_len = len(right)
-
-        # Conservative rule: only convert when this looks like a split word fragment.
-        if left_len == 0 or right_len == 0:
-            return match.group(0)
-
-        # Strong evidence: final single-letter suffix, except common stopwords ("for \"u r").
-        if right_len == 1:
-            if left.lower() in MERGE_STOPWORDS:
-                return match.group(0)
-            return UMLAUT_MAP[match.group(1)]
-
-        # Common split pattern: short prefix (e.g., "J \"o rg", "St \"o cklein").
-        if left_len <= 2:
-            return UMLAUT_MAP[match.group(1)]
-
-        return match.group(0)
-
-    return UMLAUT_SPACE_RE.sub(repl, raw_literal_body)
+def to_diaeresis(letter: str) -> str:
+    """Convert ASCII letter to diaeresis counterpart via Unicode composition."""
+    return unicodedata.normalize("NFC", letter + "\u0308")
 
 
 def merge_split_umlaut_tokens(text: str, max_passes: int = 6) -> str:
-    def should_merge(left: str, right: str) -> bool:
-        if not left or not right:
-            return False
-        if left.lower() in MERGE_STOPWORDS and len(right) == 1:
-            return False
-        if len(left) > 3 and len(right) > 3:
-            return False
-        return True
-
-    s = text
-    for _ in range(max_passes):
-        changed = False
-
-        def repl(match: re.Match[str]) -> str:
-            nonlocal changed
-            left = match.group(1)
-            uml = match.group(2)
-            right = match.group(3)
-            if should_merge(left, right):
-                changed = True
-                return left + uml + right
-            return match.group(0)
-
-        ns = MERGE_SPLIT_UMLAUT_RE.sub(repl, s)
-        s = ns
-        if not changed:
-            break
-    return s
+    return repeat_sub(MERGE_SPLIT_UMLAUT_RE, r"\1\2\3", text, max_passes=max_passes)
 
 
 def fix_bad_name_literal(raw_literal_body: str) -> str:
-    # Pass 1: repair escaped umlaut-looking patterns with conservative split-word checks.
-    s = convert_umlaut_looking(raw_literal_body)
+    # Pass 1: standard N-Triples unescape.
+    s = unescape_nt_literal(raw_literal_body)
 
-    # Pass 2: standard N-Triples unescape.
-    s = unescape_nt_literal(s)
+    # Pass 2: repair LaTeX diaeresis fragments (\\"u, \\ "u, \\"{u}).
+    s = DIAERESIS_BRACED_RE.sub(lambda m: to_diaeresis(m.group(1)), s)
+    s = DIAERESIS_SPLIT_RE.sub(lambda m: to_diaeresis(m.group(1)), s)
 
-    # Pass 3: merge split tokens around standalone umlauts.
+    # Pass 3: repair LaTeX sharp-s fragments (\ss, \SS).
+    s = SHARP_S_BETWEEN_RE.sub(lambda m: m.group(1) + ("ß" if m.group(2) == "ss" else "ẞ") + m.group(3), s)
+    s = SHARP_S_RE.sub(lambda m: "ß" if m.group(1) == "ss" else "ẞ", s)
+
+    # Pass 4: merge split tokens around standalone umlauts.
     s = merge_split_umlaut_tokens(s)
 
-    # Pass 4: merge single-letter prefix + umlaut-start token.
+    # Pass 5: merge single-letter prefix + umlaut-start token.
     s = repeat_sub(MERGE_SINGLE_PREFIX_RE, r"\1\2", s)
+    s = repeat_sub(MERGE_TITLECASE2_PREFIX_RE, r"\1\2", s)
 
-    # Pass 5: remove spaces after hyphen in names.
+    # Pass 6: remove spaces after hyphen in names.
     s = repeat_sub(FIX_HYPHEN_SPACE_RE, r"\1-\2", s)
 
-    # Pass 6: NFC normalization.
+    # Pass 7: normalize known split artifact and punctuation spacing.
+    s = FOR_UR_RE.sub("für", s)
+    s = SPACE_BEFORE_COMMA_RE.sub(",", s)
+
+    # Pass 8: NFC normalization.
     s = unicodedata.normalize("NFC", s)
     return s
 
@@ -367,6 +300,8 @@ def detect_suspicious(raw_escaped_after: str, repaired_unescaped: str, check_odd
     reasons: list[str] = []
     if SUSPICIOUS_RAW_UMLAUT_RE.search(raw_escaped_after):
         reasons.append("raw_escaped_umlaut_pattern")
+    if SUSPICIOUS_RAW_SHARP_S_RE.search(raw_escaped_after):
+        reasons.append("raw_escaped_sharp_s_pattern")
     if SUSPICIOUS_ISOLATED_UMLAUT_RE.search(repaired_unescaped):
         reasons.append("isolated_umlaut_token")
     if check_odd_quotes and repaired_unescaped.count('"') % 2 == 1:
