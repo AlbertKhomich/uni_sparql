@@ -112,11 +112,9 @@ def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Op
         return None
 
     key = cache_key_for_work(doi_iri, include_xpac=include_xpac)
-    cached = _work_cache.get(key)
+    cached = get_cached_work_by_doi(doi_iri, include_xpac=include_xpac)
     if cached is not None:
-        print(f"[WORK CACHE HIT] {key}", flush=True)
         return cached
-    print(f"[WORK CACHE MISS] {key}", flush=True)
 
     params = {"api_key": api_key}
     if include_xpac:
@@ -131,6 +129,20 @@ def get_work_by_doi(doi_iri: str, api_key: str, include_xpac: bool = True) -> Op
     _work_cache.set(key, data)
     cache_commit_maybe()
     return data
+
+def get_cached_work_by_doi(doi_iri: str, include_xpac: bool = True) -> Optional[Dict]:
+    doi_iri = (doi_iri or "").strip()
+    if not doi_iri:
+        return None
+
+    key = cache_key_for_work(doi_iri, include_xpac=include_xpac)
+    cached = _work_cache.get(key)
+    if cached is not None:
+        print(f"[WORK CACHE HIT] {key}", flush=True)
+        return cached
+
+    print(f"[WORK CACHE MISS] {key}", flush=True)
+    return None
 
 def search_works_by_title(title: str, api_key: str, per_page: int = 5, include_xpac: bool = True) -> List[Dict]:
     key, cleaned_title = cache_key_for_search(title, per_page=per_page, include_xpac=include_xpac)
@@ -162,3 +174,20 @@ def search_works_by_title(title: str, api_key: str, per_page: int = 5, include_x
     _search_cache.set(key, res)
     cache_commit_maybe()
     return res
+
+def get_cached_search_works_by_title(
+    title: str, per_page: int = 5, include_xpac: bool = True
+) -> Optional[List[Dict]]:
+    key, cleaned_title = cache_key_for_search(title, per_page=per_page, include_xpac=include_xpac)
+    if not cleaned_title or len(cleaned_title) < 5:
+        return None
+
+    cached = _search_cache.get(key)
+    if cached is not None:
+        print(f"[SEARCH CACHE HIT] {key}", flush=True)
+        if isinstance(cached, list):
+            return cached
+        return []
+
+    print(f"[SEARCH CACHE MISS] {key}", flush=True)
+    return None

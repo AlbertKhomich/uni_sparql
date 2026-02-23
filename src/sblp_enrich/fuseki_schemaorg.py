@@ -71,20 +71,37 @@ def fetch_publications(endpoint_query: str, limit: int = 0, offset:int = 0) -> L
 
 def fetch_pub_authors(endpoint_query: str, pub_uri: str) -> List[Dict]:
     q = f"""
-    select ?person ?name ?sameAs where {{
+    select
+      ?person
+      (sample(?name0) as ?name)
+      (sample(?sameAs0) as ?sameAs)
+      (count(distinct ?aff0) as ?affCount)
+    where {{
         <{pub_uri}> <{SCHEMA}author> ?person .
-        optional {{ ?person <{SCHEMA}name> ?name . }}
-        optional {{ ?person <{SCHEMA}sameAs> ?sameAs . }}
+        optional {{ ?person <{SCHEMA}name> ?name0 . }}
+        optional {{ ?person <{SCHEMA}sameAs> ?sameAs0 . }}
+        optional {{ ?person <{SCHEMA}affiliation> ?aff0 . }}
     }}
+    group by ?person
     """.strip()
 
     rows = sparql_select(endpoint_query, q)
     out = []
     for b in rows:
         same_as = b.get("sameAs", {}).get("value")
+        aff_count_raw = b.get("affCount", {}).get("value")
+
+        has_affiliation = False
+        if aff_count_raw is not None:
+            try:
+                has_affiliation = int(aff_count_raw) > 0
+            except ValueError:
+                has_affiliation = False
+
         out.append({
             "person": b["person"]["value"],
             "name": b.get("name", {}).get("value"),
             "orcid": same_as if same_as and "orcid.org/" in same_as.lower() else None,
+            "has_affiliation": has_affiliation,
         })
     return out

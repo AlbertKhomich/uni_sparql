@@ -46,12 +46,29 @@ def enrich_one_publication_openalex(
 
     authors = fuseki.fetch_pub_authors(endpoint_query, pub_uri)
     work = None
+    doi_cache_hit = False
+    title_cache_hit = False
+
     if doi_url:
-        work = openalex.get_work_by_doi(doi_url, api_key=api_key, include_xpac=True)
+        work = openalex.get_cached_work_by_doi(doi_url, include_xpac=True)
+        doi_cache_hit = work is not None
 
     if not work and title:
-        results = openalex.search_works_by_title(title, api_key=api_key, per_page=5, include_xpac=True)
-        work = pick_best_work_by_title(title, results)
+        cached_results = openalex.get_cached_search_works_by_title(
+            title, per_page=5, include_xpac=True
+        )
+        title_cache_hit = cached_results is not None
+        if cached_results is not None:
+            work = pick_best_work_by_title(title, cached_results)
+
+    if not work and not doi_cache_hit and not title_cache_hit:
+        if doi_url:
+            work = openalex.get_work_by_doi(doi_url, api_key=api_key, include_xpac=True)
+        if not work and title:
+            results = openalex.search_works_by_title(
+                title, api_key=api_key, per_page=5, include_xpac=True
+            )
+            work = pick_best_work_by_title(title, results)
 
     if not work:
         return g
@@ -68,8 +85,11 @@ def enrich_one_publication_openalex(
     for p in authors:
         person_uri = p["person"]
         person_name = p.get("name") or ""
+        has_affiliation = bool(p.get("has_affiliation"))
 
         if not person_name:
+            continue
+        if has_affiliation:
             continue
 
         au = pick_best_authorship(authorships, person_name)
