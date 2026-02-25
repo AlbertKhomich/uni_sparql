@@ -1,5 +1,6 @@
 import atexit
 import random
+import re
 import time
 from typing import Dict, List, Optional
 from urllib.parse import quote
@@ -10,15 +11,18 @@ from cache_db import SqliteTableCache
 from openalex_cache_keys import cache_key_for_search, cache_key_for_work
 
 OPENALEX_WORKS = "https://api.openalex.org/works"
+OPENALEX_INSTITUTIONS = "https://api.openalex.org/institutions"
 
 DB_PATH = ".openalex_cache.sqlite"
 
 _work_cache = SqliteTableCache(DB_PATH, table="work_cache", compress=True)
 _search_cache = SqliteTableCache(DB_PATH, table="search_cache", compress=True)
 authors_cache = SqliteTableCache(DB_PATH, table="authors_cache", compress=True)
+_affiliation_geo_cache = SqliteTableCache(DB_PATH, table="affiliation_geo_cache", compress=True)
 
 _PENDING = 0
 _COMMIT_EVERY = 500
+_OPENALEX_INST_ID_RE = re.compile(r"^I[0-9]+$", re.IGNORECASE)
 
 def cache_commit_maybe() -> None:
     global _PENDING
@@ -27,6 +31,7 @@ def cache_commit_maybe() -> None:
         _work_cache.commit()
         _search_cache.commit()
         authors_cache.commit()
+        _affiliation_geo_cache.commit()
         _PENDING = 0
 
 def cache_close() -> None:
@@ -43,6 +48,10 @@ def cache_close() -> None:
     except Exception:
         pass
     try:
+        _affiliation_geo_cache.commit()
+    except Exception:
+        pass
+    try:
         _work_cache.close()
     except Exception:
         pass
@@ -52,6 +61,10 @@ def cache_close() -> None:
         pass
     try:
         authors_cache.close()
+    except Exception:
+        pass
+    try:
+        _affiliation_geo_cache.close()
     except Exception:
         pass
 
@@ -191,3 +204,51 @@ def get_cached_search_works_by_title(
 
     print(f"[SEARCH CACHE MISS] {key}", flush=True)
     return None
+
+def normalize_openalex_institution_id(openalex_id: str) -> Optional[str]:
+    s = (openalex_id or "").strip()
+    if not s:
+        return None
+
+    s = s.rstrip("/")
+    tail = s.rsplit("/", 1)[-1]
+    if not _OPENALEX_INST_ID_RE.match(tail):
+        return None
+    return f"https://openalex.org/{tail.upper()}"
+
+def get_institution_by_openalex_id(openalex_id: str, api_key: str) -> Optional[Dict]:
+    norm = normalize_openalex_institution_id(openalex_id)
+    if not norm:
+        return None
+
+    tail = norm.rsplit("/", 1)[-1]
+    params = {"api_key": api_key}
+
+    try:
+        return http_get_json(f"{OPENALEX_INSTITUTIONS}/{tail}", params=params)
+    except requests.HTTPError as e:
+        if getattr(e.response, "status_code", None) == 404:
+            return None
+        raise
+
+def get_cached_affiliation_geo_payload(affiliation_uri: str) -> Optional[Dict]:
+    key = (affiliation_uri or "").strip()
+    if not key:
+        return None
+
+    cached = _affiliation_geo_cache.get(key)
+    if cached is not None:
+        print(f"[AFF GEO CACHE HIT] {key}", flush=True)
+        if isinstance(cached, dict):
+            return cached
+        return {}
+
+    print(f"[AFF GEO CACHE MISS] {key}", flush=True)
+    return None
+
+def set_cached_affiliation_geo_payload(affiliation_uri: str, payload: Dict) -> None:
+    key = (affiliation_uri or "").strip()
+    if not key:
+        return
+    _affiliation_geo_cache.set(key, payload)
+    cache_commit_maybe()

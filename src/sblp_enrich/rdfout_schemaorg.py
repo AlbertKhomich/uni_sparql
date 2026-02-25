@@ -1,7 +1,7 @@
 import hashlib
-from typing import Iterable, Optional, Dict
+from typing import Dict, Iterable, Optional
 from rdflib import Graph, URIRef, Literal, Namespace
-from rdflib.namespace import RDF
+from rdflib.namespace import RDF, XSD
 
 SCHEMA = Namespace("https://schema.org/")
 ORG_BASE = "https://dice-research.org/id/org/"
@@ -63,6 +63,60 @@ def add_sameas(g: Graph, person_uri: str, author_id: Optional[str]) -> None:
         return
     s = URIRef(person_uri)
     g.add((s, SCHEMA.sameAs, URIRef(author_id)))
+
+def _to_float(v) -> Optional[float]:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+def add_affiliation_geo(
+    g: Graph,
+    affiliation_uri: str,
+    *,
+    city: Optional[str],
+    country: Optional[str],
+    country_code: Optional[str],
+    latitude,
+    longitude,
+    continent: Optional[str],
+) -> bool:
+    s = URIRef(affiliation_uri)
+    wrote_any = False
+
+    city = (city or "").strip()
+    country = (country or "").strip()
+    country_code = (country_code or "").strip().upper()
+    continent = (continent or "").strip()
+
+    if city:
+        g.add((s, SCHEMA.addressLocality, Literal(city)))
+        wrote_any = True
+
+    if country:
+        g.add((s, SCHEMA.addressCountry, Literal(country)))
+        wrote_any = True
+    elif country_code:
+        g.add((s, SCHEMA.addressCountry, Literal(country_code)))
+        wrote_any = True
+
+    lat = _to_float(latitude)
+    if lat is not None:
+        g.add((s, SCHEMA.latitude, Literal(lat, datatype=XSD.double)))
+        wrote_any = True
+
+    lng = _to_float(longitude)
+    if lng is not None:
+        g.add((s, SCHEMA.longitude, Literal(lng, datatype=XSD.double)))
+        wrote_any = True
+
+    if continent:
+        g.add((s, SCHEMA.continent, Literal(continent)))
+        wrote_any = True
+
+    return wrote_any
 
 def add_identifier_doi(g: Graph, pub_uri: str, doi_value: Optional[str]) -> None:
     if not doi_value:

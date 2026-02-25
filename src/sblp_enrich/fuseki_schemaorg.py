@@ -105,3 +105,62 @@ def fetch_pub_authors(endpoint_query: str, pub_uri: str) -> List[Dict]:
             "has_affiliation": has_affiliation,
         })
     return out
+
+def fetch_affiliations_with_openalex(
+    endpoint_query: str,
+    limit: int = 0,
+    offset: int = 0,
+    only_missing_geo: bool = True,
+) -> List[Dict]:
+    limit = int(limit)
+    offset = int(offset)
+
+    limit_clause = f"limit {limit}" if limit > 0 else ""
+    offset_clause = f"offset {offset}" if offset > 0 else ""
+
+    missing_geo_filter = ""
+    if only_missing_geo:
+        missing_geo_filter = """
+        filter(
+            !exists { ?aff <https://schema.org/addressLocality> ?_city } ||
+            !exists { ?aff <https://schema.org/addressCountry> ?_country } ||
+            !exists { ?aff <https://schema.org/latitude> ?_lat } ||
+            !exists { ?aff <https://schema.org/longitude> ?_lng } ||
+            !exists { ?aff <https://schema.org/continent> ?_continent }
+        )
+        """.strip()
+
+    q = f"""
+    prefix schema: <{SCHEMA}>
+    select
+      ?aff
+      (sample(?openalex0) as ?openalex)
+    where {{
+      ?s schema:affiliation ?aff .
+      {{
+        ?aff schema:sameAs ?openalex0 .
+        filter(regex(str(?openalex0), "^https?://openalex\\\\.org/I[0-9]+/?$", "i"))
+      }}
+      union
+      {{
+        bind(?aff as ?openalex0)
+        filter(regex(str(?aff), "^https?://openalex\\\\.org/I[0-9]+/?$", "i"))
+      }}
+      {missing_geo_filter}
+    }}
+    group by ?aff
+    order by ?aff
+    {limit_clause}
+    {offset_clause}
+    """.strip()
+
+    rows = sparql_select(endpoint_query, q)
+    out = []
+    for b in rows:
+        out.append(
+            {
+                "affiliation": b["aff"]["value"],
+                "openalex_sameas": b.get("openalex", {}).get("value"),
+            }
+        )
+    return out
