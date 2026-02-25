@@ -2,19 +2,20 @@ import time
 import atexit
 import re
 import requests
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from rdflib import Graph
 
 import openalex
 import fuseki_schemaorg as fuseki
 from cache_db import SqliteTableCache
-from rdfout_schemaorg import add_affiliation, add_sameas, add_identifier_doi
+from rdfout_schemaorg import add_affiliation, add_sameas, add_identifier_doi, add_publication_about_topic
 from author_match import pick_best_authorship, pick_best_work_by_title
 from openalex_utils import doi_from_work
 
 
 _DOI_RE = re.compile(r"^DOI:\s*(10\.\d{4,9}/\S+)\s*$", re.IGNORECASE)
+_OA_FIELD_SUBFIELD_RE = re.compile(r"^https?://openalex\.org/(fields|subfields)/[0-9]+/?$", re.IGNORECASE)
 
 def openalex_author_endpoint(author_id: str) -> Optional[str]:
     if not author_id:
@@ -30,6 +31,47 @@ def doi_identifier_to_url(identifier: str) -> Optional[str]:
         return None
     doi = m.group(1).rstrip(").],.;")
     return f"https://doi.org/{doi}"
+
+def _normalize_openalex_field_or_subfield_id(topic_uri: str) -> Optional[str]:
+    t = (topic_uri or "").strip()
+    if not t:
+        return None
+    if not _OA_FIELD_SUBFIELD_RE.match(t):
+        return None
+    t = t.rstrip("/")
+    t = "https://openalex.org/" + t.split("openalex.org/", 1)[1]
+    return t
+
+def _collect_work_field_and_subfield_ids(work: Dict) -> Set[str]:
+    out: Set[str] = set()
+
+    def push(topic_uri: Optional[str]) -> None:
+        norm = _normalize_openalex_field_or_subfield_id(topic_uri or "")
+        if norm:
+            out.add(norm)
+
+    primary_topic = work.get("primary_topic") or {}
+    if isinstance(primary_topic, dict):
+        sf = primary_topic.get("subfield") or {}
+        if isinstance(sf, dict):
+            push(sf.get("id"))
+        f = primary_topic.get("field") or {}
+        if isinstance(f, dict):
+            push(f.get("id"))
+
+    topics = work.get("topics") or []
+    if isinstance(topics, list):
+        for t in topics:
+            if not isinstance(t, dict):
+                continue
+            sf = t.get("subfield") or {}
+            if isinstance(sf, dict):
+                push(sf.get("id"))
+            f = t.get("field") or {}
+            if isinstance(f, dict):
+                push(f.get("id"))
+
+    return out
 
 def enrich_one_publication_openalex(
     endpoint_query: str,
@@ -73,9 +115,17 @@ def enrich_one_publication_openalex(
     if not work:
         return g
 
+    topic_ids = _collect_work_field_and_subfield_ids(work)
+    if topic_ids:
+        existing_topic_ids = fuseki.fetch_pub_openalex_field_subfield_links(endpoint_query, pub_uri)
+        for topic_id in topic_ids:
+            if topic_id in existing_topic_ids:
+                continue
+            add_publication_about_topic(g, pub_uri, topic_id)
+
     authorships = work.get("authorships", []) or []
-    if not isinstance(authorships, list) or not authorships:
-        return g
+    if not isinstance(authorships, list):
+        authorships = []
 
     if not doi_url:
         doi2 = doi_from_work(work)

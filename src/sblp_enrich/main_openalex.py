@@ -13,7 +13,7 @@ def main():
     ap.add_argument("--sleep", type=float, default=0.8)
     args = ap.parse_args()
 
-    pubs = fuseki.fetch_publications(args.fuseki_query)
+    pubs = fuseki.fetch_publications(args.fuseki_query, limit=args.limit)
 
     all_new = Graph()
     enriched_pubs = 0

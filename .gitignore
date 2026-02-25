@@ -23,3 +23,7 @@ dice-website/
 
 smush_rewrite.py
 align.py
+
+*.sqlite
+
+tentris_

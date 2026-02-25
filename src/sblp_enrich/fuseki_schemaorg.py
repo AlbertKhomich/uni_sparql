@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 import requests
 
 SCHEMA = "https://schema.org/"
@@ -163,4 +163,26 @@ def fetch_affiliations_with_openalex(
                 "openalex_sameas": b.get("openalex", {}).get("value"),
             }
         )
+    return out
+
+def fetch_pub_openalex_field_subfield_links(endpoint_query: str, pub_uri: str) -> Set[str]:
+    q = f"""
+    select distinct ?topic where {{
+      {{
+        <{pub_uri}> <{SCHEMA}about> ?topic .
+      }}
+      union
+      {{
+        <{pub_uri}> <{SCHEMA}knowsAbout> ?topic .
+      }}
+      filter(regex(str(?topic), "^https?://openalex\\\\.org/(fields|subfields)/[0-9]+/?$", "i"))
+    }}
+    """.strip()
+
+    rows = sparql_select(endpoint_query, q)
+    out: Set[str] = set()
+    for b in rows:
+        t = (b.get("topic", {}).get("value") or "").strip()
+        if t:
+            out.add(t.rstrip("/"))
     return out

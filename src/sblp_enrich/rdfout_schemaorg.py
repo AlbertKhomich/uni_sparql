@@ -118,6 +118,11 @@ def add_affiliation_geo(
 
     return wrote_any
 
+def add_publication_about_topic(g: Graph, pub_uri: str, topic_uri: str) -> None:
+    s = URIRef(pub_uri)
+    o = URIRef(topic_uri)
+    g.add((s, SCHEMA.about, o))
+
 def add_identifier_doi(g: Graph, pub_uri: str, doi_value: Optional[str]) -> None:
     if not doi_value:
         return
