@@ -2,9 +2,16 @@ import hashlib
 from typing import Dict, Iterable, Optional
 from rdflib import Graph, URIRef, Literal, Namespace
 from rdflib.namespace import RDF, XSD
+from rdflib.term import _is_valid_uri
 
 SCHEMA = Namespace("https://schema.org/")
 ORG_BASE = "https://dice-research.org/id/org/"
+
+def _is_serializable_uri(v: str) -> bool:
+    s = (v or "").strip()
+    if not s:
+        return False
+    return _is_valid_uri(s)
 
 def mint_org_uri(
     *,
@@ -122,6 +129,21 @@ def add_publication_about_topic(g: Graph, pub_uri: str, topic_uri: str) -> None:
     s = URIRef(pub_uri)
     o = URIRef(topic_uri)
     g.add((s, SCHEMA.about, o))
+
+def add_publication_pdf_url(g: Graph, pub_uri: str, pdf_url: Optional[str]) -> None:
+    v = (pdf_url or "").strip()
+    if not v:
+        return
+
+    vl = v.lower()
+    if not (vl.startswith("https://") or vl.startswith("http://")):
+        return
+
+    if not _is_serializable_uri(v):
+        return
+
+    s = URIRef(pub_uri)
+    g.add((s, SCHEMA.url, URIRef(v)))
 
 def add_identifier_doi(g: Graph, pub_uri: str, doi_value: Optional[str]) -> None:
     if not doi_value:

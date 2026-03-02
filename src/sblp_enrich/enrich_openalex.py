@@ -9,7 +9,13 @@ from rdflib import Graph
 import openalex
 import fuseki_schemaorg as fuseki
 from cache_db import SqliteTableCache
-from rdfout_schemaorg import add_affiliation, add_sameas, add_identifier_doi, add_publication_about_topic
+from rdfout_schemaorg import (
+    add_affiliation,
+    add_sameas,
+    add_identifier_doi,
+    add_publication_about_topic,
+    add_publication_pdf_url,
+)
 from author_match import pick_best_authorship, pick_best_work_by_title
 from openalex_utils import doi_from_work
 
@@ -73,6 +79,16 @@ def _collect_work_field_and_subfield_ids(work: Dict) -> Set[str]:
 
     return out
 
+def _extract_primary_location_pdf_url(work: Dict) -> Optional[str]:
+    primary_location = work.get("primary_location") or {}
+    if not isinstance(primary_location, dict):
+        return None
+
+    pdf_url = (primary_location.get("pdf_url") or "").strip()
+    if not pdf_url:
+        return None
+    return pdf_url
+
 def enrich_one_publication_openalex(
     endpoint_query: str,
     pub_row: Dict,
@@ -114,6 +130,10 @@ def enrich_one_publication_openalex(
 
     if not work:
         return g
+
+    pdf_url = _extract_primary_location_pdf_url(work)
+    if pdf_url:
+        add_publication_pdf_url(g, pub_uri, pdf_url)
 
     topic_ids = _collect_work_field_and_subfield_ids(work)
     if topic_ids:
