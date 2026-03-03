@@ -27,3 +27,5 @@ align.py
 *.sqlite
 
 tentris_
+
+logs
