@@ -29,3 +29,5 @@ align.py
 tentris_
 
 logs
+
+.tentris-debug-log.json
