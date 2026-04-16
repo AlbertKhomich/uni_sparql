@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+import argparse
+import html
 import re
 import sys
-import html
 from collections import Counter
 from urllib.parse import quote
 
@@ -110,7 +111,15 @@ def extract_fields(entry: str):
         fields.append((name, raw))
     return fields
 
-def main(path: str):
+def main(path: str | None = None) -> None:
+    if path is None:
+        ap = argparse.ArgumentParser(
+            description="List BibTeX citation keys, field names, counts, and DOI parsing samples."
+        )
+        ap.add_argument("bib_file", help="Path to the .bib file")
+        args = ap.parse_args()
+        path = args.bib_file
+
     text = open(path, "r", encoding="utf-8", errors="replace").read()
 
     keys = []
@@ -157,7 +166,4 @@ def main(path: str):
             print(f"{k}\t{doi or ''}\t{url or ''}\t{raw}")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python3 bib_list_keys.py your.bib", file=sys.stderr)
-        sys.exit(2)
-    main(sys.argv[1])
+    main()

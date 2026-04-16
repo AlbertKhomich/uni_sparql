@@ -3,12 +3,13 @@ import time
 import random
 from difflib import SequenceMatcher
 from typing import Dict, List, Optional
-from cache import JsonCache
+from sblp_enrich.cache import JsonCache
+from sblp_enrich.paths import default_cache_path
 
 import requests
 
-_publ_cache = JsonCache(".dblp_publ_cache.json")
-_auth_cache = JsonCache(".dblp_author_cache.json")
+_publ_cache = JsonCache(default_cache_path(".dblp_publ_cache.json"))
+_auth_cache = JsonCache(default_cache_path(".dblp_author_cache.json"))
 
 DBLP_PUBL_API = "https://dblp.org/search/publ/api"
 DBLP_AUTHOR_API = "https://dblp.org/search/author/api"

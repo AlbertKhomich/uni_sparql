@@ -6,18 +6,18 @@ from typing import Dict, List, Optional, Set
 
 from rdflib import Graph
 
-import openalex
-import fuseki_schemaorg as fuseki
-from cache_db import SqliteTableCache
-from rdfout_schemaorg import (
+from sblp_enrich.providers import openalex
+from sblp_enrich.providers import fuseki_schemaorg as fuseki
+from sblp_enrich.cache_db import SqliteTableCache
+from sblp_enrich.rdf.rdfout_schemaorg import (
     add_affiliation,
     add_sameas,
     add_identifier_doi,
     add_publication_about_topic,
     add_publication_pdf_url,
 )
-from author_match import pick_best_authorship, pick_best_work_by_title
-from openalex_utils import doi_from_work
+from sblp_enrich.author_match import pick_best_authorship, pick_best_work_by_title
+from sblp_enrich.providers.openalex_utils import doi_from_work
 
 
 _DOI_RE = re.compile(r"^DOI:\s*(10\.\d{4,9}/\S+)\s*$", re.IGNORECASE)

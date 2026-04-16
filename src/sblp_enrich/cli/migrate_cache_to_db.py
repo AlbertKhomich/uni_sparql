@@ -2,7 +2,7 @@ import json
 import argparse
 from typing import Dict, Any
 
-from cache_db import SqliteTableCache
+from sblp_enrich.cache_db import SqliteTableCache
 
 def migrate_json_dict_to_sqlite(
     json_path: str, 

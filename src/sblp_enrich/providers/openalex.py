@@ -7,13 +7,14 @@ from urllib.parse import quote
 
 import requests
 
-from cache_db import SqliteTableCache
-from openalex_cache_keys import cache_key_for_search, cache_key_for_work
+from sblp_enrich.cache_db import SqliteTableCache
+from sblp_enrich.paths import default_cache_path
+from sblp_enrich.providers.openalex_cache_keys import cache_key_for_search, cache_key_for_work
 
 OPENALEX_WORKS = "https://api.openalex.org/works"
 OPENALEX_INSTITUTIONS = "https://api.openalex.org/institutions"
 
-DB_PATH = ".openalex_cache.sqlite"
+DB_PATH = default_cache_path(".openalex_cache.sqlite")
 
 _work_cache = SqliteTableCache(DB_PATH, table="work_cache", compress=True)
 _search_cache = SqliteTableCache(DB_PATH, table="search_cache", compress=True)

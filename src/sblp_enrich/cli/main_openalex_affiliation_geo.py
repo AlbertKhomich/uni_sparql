@@ -4,10 +4,10 @@ from typing import Any, Dict, Optional, Tuple
 
 from rdflib import Graph
 
-from country_continent import continent_from_country_code
-import fuseki_schemaorg as fuseki
-import openalex
-from rdfout_schemaorg import add_affiliation_geo
+from sblp_enrich.country_continent import continent_from_country_code
+from sblp_enrich.providers import fuseki_schemaorg as fuseki
+from sblp_enrich.providers import openalex
+from sblp_enrich.rdf.rdfout_schemaorg import add_affiliation_geo
 
 
 def _extract_geo_fields(inst: Dict[str, Any]) -> Tuple[str, str, str, Optional[float], Optional[float], Optional[str]]:

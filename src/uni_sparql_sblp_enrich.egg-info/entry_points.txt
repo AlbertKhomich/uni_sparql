@@ -1,0 +1,20 @@
+[console_scripts]
+sblp-answers-to-nt = sblp_enrich.cli.main_answers_to_nt:main
+sblp-bib-keys-and-fields = sblp_enrich.bib.bib_keys_and_fields:main
+sblp-bib-make-keys-unique-dbid = sblp_enrich.bib.bib_make_keys_unique_dbid:main
+sblp-bib-repair-all = sblp_enrich.bib.bib_repair_all:main
+sblp-bib-to-nt = sblp_enrich.bib.bib_to_nt:main
+sblp-canonicalize-iris = sblp_enrich.rdf.canonicalize_iris:main
+sblp-clean-names-nt = sblp_enrich.rdf.clean_names_nt:main
+sblp-csv-to-rdf = sblp_enrich.rdf.csv_to_rdf:main
+sblp-enrich = sblp_enrich.cli.main:main
+sblp-filter-schema-name-symbol-combo = sblp_enrich.rdf.filter_schema_name_symbol_combo:main
+sblp-fix-bib-entry-keys = sblp_enrich.bib.fix_bib_entry_keys:main
+sblp-fix-bib-fields-latex = sblp_enrich.bib.fix_bib_fields_latex:main
+sblp-fix-problem-names-nt = sblp_enrich.rdf.fix_problem_names_nt:main
+sblp-llm-from-prompts = sblp_enrich.cli.main_llm_from_prompts:main
+sblp-migrate-cache-to-db = sblp_enrich.cli.migrate_cache_to_db:main
+sblp-openalex-affiliation-geo = sblp_enrich.cli.main_openalex_affiliation_geo:main
+sblp-openalex-enrich = sblp_enrich.cli.main_openalex:main
+sblp-openalex-offline = sblp_enrich.cli.main_openalex_offline:main
+sblp-pdf-github-prompt = sblp_enrich.cli.main_pdf_github_prompt:main

@@ -1,14 +1,24 @@
-import json, sqlite3, time, zlib, random
+import json
+import os
+import random
+import sqlite3
+import time
+import zlib
 from typing import Any, Optional
+
 
 class SqliteTableCache:
     def __init__(self, db_path: str, table: str, compress: bool = True):
-        self.db_path = db_path
+        self.db_path = os.fspath(db_path)
         self.table = table
         self.compress = compress
 
+        parent = os.path.dirname(self.db_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
         # isolation_level=None => autocommit; each statement is its own transaction
-        self.db = sqlite3.connect(db_path, timeout=60, isolation_level=None)
+        self.db = sqlite3.connect(self.db_path, timeout=60, isolation_level=None)
         self.db.execute("PRAGMA journal_mode=WAL;")
         self.db.execute("PRAGMA synchronous=NORMAL;")
         self.db.execute("PRAGMA busy_timeout=60000;")  # 60s wait on locks

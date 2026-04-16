@@ -1,9 +1,9 @@
 import argparse
 from rdflib import Graph
 
-import fuseki
-from enrich import enrich_one_paper
-from rdfout import serialize_nt, make_insert_update_from_graph
+from sblp_enrich.providers import fuseki
+from sblp_enrich.enrich import enrich_one_paper
+from sblp_enrich.rdf.rdfout import serialize_nt, make_insert_update_from_graph
 
 def main():
     ap = argparse.ArgumentParser()

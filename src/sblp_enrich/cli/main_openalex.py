@@ -1,8 +1,8 @@
 import argparse
 from rdflib import Graph
 
-import fuseki_schemaorg as fuseki
-from enrich_openalex import enrich_one_publication_openalex
+from sblp_enrich.providers import fuseki_schemaorg as fuseki
+from sblp_enrich.enrich_openalex import enrich_one_publication_openalex
 
 def main():
     ap = argparse.ArgumentParser()

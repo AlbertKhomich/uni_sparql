@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import requests
 
-import fuseki_schemaorg as fuseki
+from sblp_enrich.providers import fuseki_schemaorg as fuseki
 
 
 SCHEMA = "https://schema.org/"

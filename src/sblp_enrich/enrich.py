@@ -3,9 +3,9 @@ from typing import Dict, List, Optional, Tuple
 
 from rdflib import Graph
 
-import dblp
-import fuseki
-from rdfout import ext_author_uri_from_pid, add_author_node, add_paper_author_link
+from sblp_enrich.providers import dblp
+from sblp_enrich.providers import fuseki
+from sblp_enrich.rdf.rdfout import ext_author_uri_from_pid, add_author_node, add_paper_author_link
 
 def enrich_one_paper(
     endpoint_query: str,

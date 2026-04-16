@@ -6,14 +6,15 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from rdflib import Graph
 
-import fuseki_schemaorg as fuseki
-from rdfout_schemaorg import add_affiliations, add_sameas_openalex, add_identifier_doi
-from author_match import pick_best_authorship, pick_best_work_by_title
-from openalex_utils import doi_from_work, normalize_doi_iri
-from openalex_cache_keys import cache_key_for_work, cache_key_for_search
+from sblp_enrich.providers import fuseki_schemaorg as fuseki
+from sblp_enrich.rdf.rdfout_schemaorg import add_affiliations, add_sameas_openalex, add_identifier_doi
+from sblp_enrich.author_match import pick_best_authorship, pick_best_work_by_title
+from sblp_enrich.providers.openalex_utils import doi_from_work, normalize_doi_iri
+from sblp_enrich.providers.openalex_cache_keys import cache_key_for_work, cache_key_for_search
+from sblp_enrich.paths import default_cache_path
 
-_DEFAULT_WORK_CACHE = ".openalex_work_cache.json"
-_DEFAULT_SEARCH_CACHE = ".openalex_search_cache.json"
+_DEFAULT_WORK_CACHE = default_cache_path(".openalex_work_cache.json")
+_DEFAULT_SEARCH_CACHE = default_cache_path(".openalex_search_cache.json")
 INCLUDE_XPAC = True
 
 def _load_json_object(path: str) -> Dict[str, Any]:

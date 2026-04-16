@@ -1,0 +1,5 @@
+bibtexparser<2,>=1.4
+pylatexenc>=2.10
+rapidfuzz>=3.0
+rdflib>=6.0
+requests>=2.31

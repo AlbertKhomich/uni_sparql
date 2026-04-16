@@ -4,8 +4,8 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  sameas_pairs.sh -i INPUT.nt -o OUTPUT.tsv
-  sameas_pairs.sh INPUT.nt OUTPUT.tsv
+  link.sh -i INPUT.nt -o OUTPUT.tsv
+  link.sh INPUT.nt OUTPUT.tsv
 
 Creates subject-subject pairs (tab-separated) for subjects that share the same object
 (from schema:sameAs triples and identifier "DOI:..." rewritten as schema:doi).
