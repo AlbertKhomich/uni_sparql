@@ -32,3 +32,5 @@ logs
 var/
 
 .tentris-debug-log.json
+
+statistics.sh

@@ -88,6 +88,34 @@ This semantic layer turns spreadsheet fields such as titles, years, languages, a
 
 The result is an `.nt` file that represents the initial knowledge graph. That graph can then be loaded into a triple store such as Fuseki and enriched further with the other commands in this repository.
 
+## How The Data Enrichment Pipeline Works
+
+The enrichment workflow is incremental. Instead of rebuilding the KG from scratch, the commands query the existing graph through a SPARQL endpoint, look for missing information, and write new triples as another `.nt` file that can be loaded back into the store.
+
+The main enrichment stages are:
+
+1. `sblp-openalex-enrich`
+
+   This is the primary live enrichment step. It reads publications, tries to match each one to an OpenAlex work, prefers DOI-based matching when possible, and falls back to title matching otherwise. It then emits new triples for missing DOI links, PDF URLs, OpenAlex topic links, author `sameAs` links, and affiliation organizations.
+
+2. `sblp-openalex-offline`
+
+   This is the cache-based version of the OpenAlex enrichment step. Instead of calling the live API, it reads previously stored OpenAlex work and search caches and generates the same kind of missing DOI, affiliation, and author identity triples. This is useful for repeatable runs and for continuing enrichment without new API calls.
+
+3. `sblp-openalex-affiliation-geo`
+
+   After affiliation organizations have been linked to OpenAlex institutions, this step enriches them with geographic metadata such as city, country, latitude, longitude, and continent.
+
+4. Optional PDF / LLM enrichment for GitHub links
+
+   A separate branch of the pipeline looks for code repositories related to publications:
+
+   - `sblp-pdf-github-prompt` collects papers with PDF URLs, downloads or reuses PDFs, extracts text, finds GitHub mentions, and writes structured prompts
+   - `sblp-llm-from-prompts` sends those prompts to an LLM and stores the answers as JSONL
+   - `sblp-answers-to-nt` converts accepted high-confidence answers into RDF triples such as `schema:codeRepository`
+
+There is also an older `sblp-enrich` command that follows a DBLP-based enrichment path for adding missing author information. In practice, the OpenAlex-based commands appear to be the main schema.org-oriented enrichment workflow in this repository.
+
 ## Project Layout
 
 The package uses a shallow `src/` layout:
