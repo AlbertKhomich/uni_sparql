@@ -34,3 +34,5 @@ var/
 .tentris-debug-log.json
 
 statistics.sh
+
+run/

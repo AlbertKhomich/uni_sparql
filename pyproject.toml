@@ -17,6 +17,8 @@ dependencies = [
 
 [project.scripts]
 sblp-enrich = "sblp_enrich.cli.main:main"
+sblp-author-publication-count = "sblp_enrich.author_publication_count:main"
+sblp-author-collaboration-count = "sblp_enrich.author_publication_count:main"
 sblp-openalex-enrich = "sblp_enrich.cli.main_openalex:main"
 sblp-openalex-offline = "sblp_enrich.cli.main_openalex_offline:main"
 sblp-openalex-affiliation-geo = "sblp_enrich.cli.main_openalex_affiliation_geo:main"
