@@ -376,7 +376,7 @@ def main() -> None:
         default=env_optional_float("OPENAI_TEMPERATURE"),
         help="Optional; when unset, temperature is omitted from API payload.",
     )
-    ap.add_argument("--max-output-tokens", type=int, default=env_int("OPENAI_MAX_OUTPUT_TOKENS", 350))
+    ap.add_argument("--max-output-tokens", type=int, default=env_int("OPENAI_MAX_OUTPUT_TOKENS", 3000))
     ap.add_argument("--timeout", type=float, default=env_float("OPENAI_TIMEOUT_S", 120.0))
     ap.add_argument("--max-retries", type=int, default=env_int("OPENAI_MAX_RETRIES", 6))
     ap.add_argument(

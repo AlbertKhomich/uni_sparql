@@ -14,7 +14,7 @@ from sblp_enrich.providers import fuseki_schemaorg as fuseki
 
 
 SCHEMA = "https://schema.org/"
-PAPER_PREFIX = "https://dice-research.org/id/publication/"
+PAPER_PREFIX = "http://upbkg.data.dice-research.org/id/publication/"
 URL_RE = re.compile(r"^<([^>]+)>\s+<https://schema\.org/url>\s+<([^>]+)>\s+\.\s*$")
 GITHUB_RE = re.compile(
     r"(?i)\b(?:https?://|www\.)?github\.com/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?(?:/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*)?"
