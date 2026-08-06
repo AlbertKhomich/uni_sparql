@@ -1,0 +1,1 @@
+sort triples.nt | uniq -c | awk '$1 > 1 {duplicates += $1 - 1} END {print duplicates}'
